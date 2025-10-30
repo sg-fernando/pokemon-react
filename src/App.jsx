@@ -6,54 +6,47 @@ function App() {
   const [pokemonName, setPokemonName] = useState("");
   const [pokemonList, setPokemonList] = useState([]);
 
-    const replace = (event, index, name) => {
-        event.preventDefault();
-        console.log(`The name you entered was: ${name} at index ${index}`)
-        let url = "https://pokeapi.co/api/v2/pokemon/" + name;
-        fetch(url)
-            .then((response) => response.json())
-            .then((data) => {
-                console.log(data)
-                let name = data.name;
-                let img = data.sprites.front_default;
-                let type = data.types[0].type.name;
-                let moves = data.moves ?? [];
-                let stats = data.stats;
-                let newPokemonList = [...pokemonList];
-                newPokemonList[index] = {
-                                            name: name,
-                                            img: img,
-                                            type: type,
-                                            moves: moves,
-                                            hp: stats[0].base_stat
-                                        };
-                setPokemonList(newPokemonList);
-            });
-    }
+    const fetchPokemon = async (name) => {
+        const safe = name.trim().toLowerCase();
+        if (!safe) throw new Error('Empty name');
+        const url = `https://pokeapi.co/api/v2/pokemon/${safe}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`No Pokémon found for "${name}"`);
+        const data = await res.json();
+        const stats = data.stats ?? [];
+        return {
+            name: data.name,
+            img: data.sprites?.front_default ?? '',
+            type: data?.types?.[0]?.type?.name ?? 'normal',
+            moves: data.moves ?? [],
+            hp: stats?.[0]?.base_stat ?? 0,
+        };
+    };
 
-    const handleSubmit = (event) => {
+    const replace = async (event, index, name) => {
         event.preventDefault();
-        let url = "https://pokeapi.co/api/v2/pokemon/" + pokemonName;
-        fetch(url)
-            .then((response) => response.json())
-            .then((data) => {
-                let name = data.name;
-                let img = data.sprites.front_default;
-                let type = data.types[0].type.name;
-                let moves = data.moves ?? [];
-                let stats = data.stats;
-                setPokemonList([
-                    ...pokemonList,
-                    {
-                            name: name,
-                            img: img,
-                            type: type,
-                            moves: moves,
-                            hp: stats[0].base_stat
-                    }
-                ]);
+        try {
+            const poke = await fetchPokemon(name);
+            setPokemonList((prev) => {
+                const next = [...prev];
+                next[index] = poke;
+                return next;
             });
-    }
+        } catch (e) {
+            alert(e.message);
+        }
+    };
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        try {
+            const poke = await fetchPokemon(pokemonName);
+            setPokemonList((prev) => [...prev, poke]);
+            setPokemonName('');
+        } catch (e) {
+            alert(e.message);
+        }
+    };
 
     return (
         <div className="App">
